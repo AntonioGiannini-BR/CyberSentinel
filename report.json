@@ -1,0 +1,56 @@
+{
+  "total_events": 18,
+  "failed_logins": 14,
+  "successful_logins": 4,
+  "unique_ips": 5,
+  "suspicious_ips": [
+    {
+      "ip": "203.0.113.77",
+      "failed_attempts": 6,
+      "successful_attempts": 0,
+      "risk": "medium"
+    },
+    {
+      "ip": "192.168.0.10",
+      "failed_attempts": 5,
+      "successful_attempts": 1,
+      "risk": "medium"
+    }
+  ],
+  "targeted_users": [
+    {
+      "user": "finance",
+      "failed_attempts": 6
+    },
+    {
+      "user": "admin",
+      "failed_attempts": 5
+    },
+    {
+      "user": "root",
+      "failed_attempts": 3
+    }
+  ],
+  "top_ips": [
+    {
+      "ip": "192.168.0.10",
+      "events": 6
+    },
+    {
+      "ip": "203.0.113.77",
+      "events": 6
+    },
+    {
+      "ip": "198.51.100.22",
+      "events": 3
+    },
+    {
+      "ip": "172.16.1.8",
+      "events": 2
+    },
+    {
+      "ip": "10.0.0.5",
+      "events": 1
+    }
+  ]
+}
