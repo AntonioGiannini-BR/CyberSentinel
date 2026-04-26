@@ -1,6 +1,6 @@
 # CyberSentinel Log Analyzer
 
-Projeto de cibersegurança em Python para portfólio no GitHub.
+Projeto de cibersegurança em Python 
 
 O **CyberSentinel Log Analyzer** analisa logs de autenticação e identifica padrões suspeitos, como:
 - múltiplas tentativas de login falhas;
@@ -91,13 +91,6 @@ Top IPs by activity:
 - leitura de logs reais do Linux/Windows;
 - interface gráfica.
 
-## Por que esse projeto é bom para GitHub?
-Porque mostra:
-- código limpo;
-- estrutura profissional;
-- uso de testes;
-- aplicação prática em segurança;
-- possibilidade real de evolução.
 
 ## Observação ética
 Este projeto é **defensivo e educacional**, focado em monitoramento e análise de segurança.
