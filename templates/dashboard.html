@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CyberSentinel Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+    <main class="container">
+        <header class="hero">
+            <div>
+                <p class="eyebrow">Cybersecurity / Blue Team</p>
+                <h1>CyberSentinel Dashboard</h1>
+                <p class="subtitle">Painel web em Flask para análise de logs, tentativas suspeitas e possíveis ataques de força bruta.</p>
+            </div>
+            <form method="POST" class="threshold-form">
+                <label for="threshold">Limite de força bruta</label>
+                <div>
+                    <input id="threshold" name="threshold" type="number" min="1" value="{{ threshold }}" />
+                    <button type="submit">Analisar</button>
+                </div>
+                <small>Arquivo analisado: {{ log_file }}</small>
+            </form>
+        </header>
+
+        <section class="cards">
+            <article class="card">
+                <span>Total de eventos</span>
+                <strong>{{ report.total_events }}</strong>
+            </article>
+            <article class="card danger">
+                <span>Logins falhos</span>
+                <strong>{{ report.failed_logins }}</strong>
+            </article>
+            <article class="card success">
+                <span>Logins com sucesso</span>
+                <strong>{{ report.successful_logins }}</strong>
+            </article>
+            <article class="card">
+                <span>IPs únicos</span>
+                <strong>{{ report.unique_ips }}</strong>
+            </article>
+        </section>
+
+        <section class="grid">
+            <article class="panel">
+                <h2>IPs suspeitos</h2>
+                {% if report.suspicious_ips %}
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>IP</th>
+                                    <th>Falhas</th>
+                                    <th>Sucessos</th>
+                                    <th>Risco</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in report.suspicious_ips %}
+                                <tr>
+                                    <td>{{ item.ip }}</td>
+                                    <td>{{ item.failed_attempts }}</td>
+                                    <td>{{ item.successful_attempts }}</td>
+                                    <td><span class="badge {{ item.risk }}">{{ item.risk }}</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="empty">Nenhum IP suspeito encontrado.</p>
+                {% endif %}
+            </article>
+
+            <article class="panel">
+                <h2>Usuários mais visados</h2>
+                {% if report.targeted_users %}
+                    <ul class="list">
+                        {% for user in report.targeted_users %}
+                            <li><span>{{ user.user }}</span><strong>{{ user.failed_attempts }} falhas</strong></li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="empty">Nenhum usuário crítico encontrado.</p>
+                {% endif %}
+            </article>
+        </section>
+
+        <section class="grid">
+            <article class="panel">
+                <h2>Top IPs por atividade</h2>
+                <ul class="list">
+                    {% for item in report.top_ips %}
+                        <li><span>{{ item.ip }}</span><strong>{{ item.events }} eventos</strong></li>
+                    {% endfor %}
+                </ul>
+            </article>
+
+            <article class="panel">
+                <h2>Últimos eventos</h2>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>IP</th>
+                                <th>Usuário</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for event in events %}
+                            <tr>
+                                <td>{{ event.timestamp }}</td>
+                                <td>{{ event.ip }}</td>
+                                <td>{{ event.user }}</td>
+                                <td><span class="status {{ event.status|lower }}">{{ event.status }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+        </section>
+    </main>
+</body>
+</html>
