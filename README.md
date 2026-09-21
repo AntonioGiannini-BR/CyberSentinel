@@ -1,80 +1,50 @@
-# 🔐 CyberSentinel - Security Log Analyzer
+# CyberSentinel
 
-CyberSentinel is a Python-based cybersecurity project for analyzing authentication logs and detecting suspicious activity, brute-force attempts, targeted users, and threat patterns.
+Dashboard defensivo para análise de logs de autenticação. O sistema processa arquivos `.log`/`.txt` como texto, identifica padrões de tentativas falhas e brute force, persiste resultados em SQLite e apresenta telemetria real no dashboard.
 
-## 🚀 Features
+## Recursos
 
-- Detects brute-force login attempts
-- Identifies suspicious IP addresses
-- Shows most targeted users
-- Lists top IPs by activity
-- Generates a JSON security report
-- Includes a Flask web dashboard
+- Dashboard SOC responsivo com métricas calculadas do banco local
+- Série histórica real das análises e alertas
+- Risk Score derivado de falhas e IPs suspeitos (indicador heurístico, não probabilidade)
+- Upload drag-and-drop, threshold configurável e parser seguro
+- Histórico pesquisável, detalhes, exclusão e download do relatório JSON
+- Login por `.env`, CSRF, cookies HttpOnly e headers de segurança
+- SQLite, auditoria, Docker, Gunicorn e exemplo Nginx/HTTPS
+- Interface com microinterações, profundidade 3D e suporte a `prefers-reduced-motion`
 
-## 🧰 Technologies
+## Rodar no Windows
 
-- Python 3
-- Flask
-- HTML/CSS
-- JSON
-- Pytest
-
-## 📂 Project Structure
-
-```txt
-CyberSentinel/
-├── app.py
-├── data/
-│   └── sample_auth.log
-├── src/
-│   ├── __init__.py
-│   └── analyzer.py
-├── static/
-│   └── style.css
-├── templates/
-│   └── dashboard.html
-├── tests/
-│   └── test_analyzer.py
-├── README.md
-├── requirements.txt
-├── report.json
-├── .gitignore
-└── LICENSE
-```
-
-## ▶️ Run the Web Dashboard
-
-Install dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
-Start the Flask dashboard:
-
-```bash
+```powershell
+python -m venv .venv
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+Copy-Item .env.example .env
 python app.py
 ```
 
-Open in your browser:
+Abra `http://127.0.0.1:5000`.
 
-```txt
-http://127.0.0.1:5000
+O `.env.example` desta demonstração usa `admin` / `admin123`. Troque a senha e a chave secreta antes de qualquer implantação compartilhada. Para gerar outro hash:
+
+```powershell
+python -c "from werkzeug.security import generate_password_hash; print(generate_password_hash('SUA-SENHA-FORTE'))"
 ```
 
-## 🖥️ Run in Terminal
+Cole o hash completo em `CYBERSENTINEL_PASSWORD_HASH`.
 
-```bash
-python src/analyzer.py data/sample_auth.log --output report.json
+## Formato do log
+
+```text
+2026-05-01 10:00:00 IP=10.0.0.1 USER=admin ACTION=login STATUS=failed
 ```
 
-## 🧪 Run Tests
+## Testes
 
-```bash
-pytest
+```powershell
+python -m pip install -r requirements-dev.txt
+pytest -q
 ```
 
-## ⚠️ Disclaimer
-
-This project is for educational and defensive security purposes only.
-
+> O Risk Score é uma heurística visual baseada nos dados ingeridos. Ele não representa probabilidade estatística de comprometimento nem substitui SIEM/EDR profissional.

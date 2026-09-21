@@ -1,0 +1,13 @@
+services:
+  cybersentinel:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./instance:/app/instance
+      - ./uploads:/app/uploads
+      - ./reports:/app/reports
+      - ./logs:/app/logs
+    restart: unless-stopped

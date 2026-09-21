@@ -1,30 +1,33 @@
-import sys
+from __future__ import annotations
+
 from pathlib import Path
 
-sys.path.append(str(Path(__file__).resolve().parents[1]))
+import pytest
 
-from src.analyzer import analyze_events, parse_log_line
-
-
-def test_parse_log_line():
-    line = '2026-04-20 08:12:01 - 192.168.0.10 - LOGIN_ATTEMPT - user=admin - status=FAIL'
-    parsed = parse_log_line(line)
-    assert parsed is not None
-    assert parsed['ip'] == '192.168.0.10'
-    assert parsed['user'] == 'admin'
-    assert parsed['status'] == 'FAIL'
+from src.analyzer import analyze_events, parse_log_file, validate_log_path
 
 
-def test_analyze_events_detects_suspicious_ip():
-    events = [
-        {'ip': '1.1.1.1', 'user': 'admin', 'status': 'FAIL'},
-        {'ip': '1.1.1.1', 'user': 'admin', 'status': 'FAIL'},
-        {'ip': '1.1.1.1', 'user': 'admin', 'status': 'FAIL'},
-        {'ip': '1.1.1.1', 'user': 'admin', 'status': 'FAIL'},
-        {'ip': '1.1.1.1', 'user': 'admin', 'status': 'FAIL'},
-        {'ip': '2.2.2.2', 'user': 'maria', 'status': 'SUCCESS'},
-    ]
-    report = analyze_events(events, brute_force_threshold=5)
-    assert report['failed_logins'] == 5
-    assert len(report['suspicious_ips']) == 1
-    assert report['suspicious_ips'][0]['ip'] == '1.1.1.1'
+def test_parse_log_file(sample_log: Path):
+    events = parse_log_file(sample_log)
+    assert len(events) == 7
+    assert events[0]['ip'] == '192.168.0.10'
+
+
+def test_analyze_events_flags_suspicious_ip(sample_log: Path):
+    result = analyze_events(parse_log_file(sample_log), brute_force_threshold=3)
+    assert result['summary']['failed_logins'] == 6
+    assert result['suspicious_ips'][0]['ip'] == '192.168.0.10'
+
+
+def test_rejects_invalid_extension(tmp_path: Path):
+    path = tmp_path / 'payload.py'
+    path.write_text('print("bad")', encoding='utf-8')
+    with pytest.raises(ValueError):
+        validate_log_path(path)
+
+def test_repository_sample_log_is_supported():
+    path = Path(__file__).resolve().parents[1] / 'data' / 'sample_auth.log'
+    result = analyze_events(parse_log_file(path), brute_force_threshold=5)
+    assert result['summary']['total_events'] == 18
+    assert result['summary']['failed_logins'] == 14
+    assert len(result['suspicious_ips']) == 2
