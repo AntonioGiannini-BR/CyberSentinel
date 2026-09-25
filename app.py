@@ -4,6 +4,7 @@ import json
 import logging
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
+from src.services import AnalysisService
 
 try:
     from dotenv import load_dotenv
@@ -14,10 +15,9 @@ from flask import Flask, jsonify, render_template, request, redirect, session, u
 from werkzeug.security import check_password_hash
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from src.analyzer import analyze_events, parse_log_file, save_report
 from src.config import Config
-from src.db import get_analysis, init_db, list_analyses, save_analysis, delete_analysis, dashboard_stats
-from src.security import csrf_token, login_required, safe_upload_name, validate_csrf, validate_upload
+from src.db import get_analysis, init_db, list_analyses, delete_analysis, dashboard_stats
+from src.security import csrf_token, login_required, validate_csrf
 
 
 def create_app(config: Config | None = None) -> Flask:
@@ -35,6 +35,7 @@ def create_app(config: Config | None = None) -> Flask:
     for directory in (cfg.uploads_dir, cfg.reports_dir, cfg.audit_log_path.parent):
         directory.mkdir(parents=True, exist_ok=True)
     init_db(cfg.database_path)
+    analysis_service = AnalysisService(cfg)
     _configure_logging(app, cfg.audit_log_path)
 
     @app.context_processor
@@ -91,22 +92,38 @@ def create_app(config: Config | None = None) -> Flask:
     @login_required
     def upload_log():
         validate_csrf()
+
         try:
             uploaded_file = request.files.get('log_file')
-            threshold = max(1, min(int(request.form.get('threshold', '5')), 50))
-            data = validate_upload(uploaded_file, cfg.allowed_extensions, cfg.max_upload_bytes)  # type: ignore[arg-type]
-            stored_name = safe_upload_name(uploaded_file.filename)  # type: ignore[union-attr]
-            stored_path = cfg.uploads_dir / stored_name
-            stored_path.write_bytes(data)
-            events = parse_log_file(stored_path)
-            result = analyze_events(events, brute_force_threshold=threshold)
-            report_path = save_report(result, cfg.reports_dir, prefix=Path(stored_name).stem)
-            analysis_id = save_analysis(cfg.database_path, uploaded_file.filename, stored_path, report_path, result)  # type: ignore[union-attr]
-            app.logger.info('analysis_created id=%s file=%s user=%s ip=%s', analysis_id, uploaded_file.filename, session.get('username'), request.remote_addr)  # type: ignore[union-attr]
+            threshold = max(
+                1,
+                min(int(request.form.get('threshold', '5')), 50),
+            )
+
+            analysis_id, _ = analysis_service.analyze(
+                uploaded_file,
+                threshold,
+            )
+
+            app.logger.info(
+                'analysis_created id=%s file=%s user=%s ip=%s',
+                analysis_id,
+                uploaded_file.filename,
+                session.get('username'),
+                request.remote_addr,
+            )
+
             flash('Log analyzed successfully.', 'success')
-            return redirect(url_for('analysis_detail', analysis_id=analysis_id))
+            return redirect(
+                url_for('analysis_detail', analysis_id=analysis_id)
+            )
+
         except (ValueError, OSError) as exc:
-            app.logger.warning('upload_rejected reason=%s ip=%s', exc, request.remote_addr)
+            app.logger.warning(
+                'upload_rejected reason=%s ip=%s',
+                exc,
+                request.remote_addr,
+            )
             flash(str(exc), 'error')
             return redirect(url_for('dashboard'))
 
@@ -155,18 +172,23 @@ def create_app(config: Config | None = None) -> Flask:
     @login_required
     def api_analyze():
         validate_csrf()
-        uploaded_file = request.files.get('log_file')
-        threshold = max(1, min(int(request.form.get('threshold', '5')), 50))
-        data = validate_upload(uploaded_file, cfg.allowed_extensions, cfg.max_upload_bytes)  # type: ignore[arg-type]
-        stored_name = safe_upload_name(uploaded_file.filename)  # type: ignore[union-attr]
-        stored_path = cfg.uploads_dir / stored_name
-        stored_path.write_bytes(data)
-        events = parse_log_file(stored_path)
-        result = analyze_events(events, brute_force_threshold=threshold)
-        report_path = save_report(result, cfg.reports_dir, prefix=Path(stored_name).stem)
-        analysis_id = save_analysis(cfg.database_path, uploaded_file.filename, stored_path, report_path, result)  # type: ignore[union-attr]
-        return jsonify({'analysis_id': analysis_id, 'result': result})
 
+        uploaded_file = request.files.get('log_file')
+        threshold = max(
+            1,
+            min(int(request.form.get('threshold', '5')), 50),
+        )
+
+        analysis_id, result = analysis_service.analyze(
+            uploaded_file,
+            threshold,
+        )
+
+        return jsonify({
+            'analysis_id': analysis_id,
+            'result': result,
+        })
+    
     @app.errorhandler(413)
     def file_too_large(_):
         return render_template('error.html', message='Uploaded file is too large.'), 413
