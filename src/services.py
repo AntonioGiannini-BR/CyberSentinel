@@ -4,13 +4,18 @@ from werkzeug.datastructures import FileStorage
 
 from src.analyzer import analyze_events, parse_log_file, save_report
 from src.config import Config
-from src.db import save_analysis
+from src.repositories import AnalysisRepository
 from src.security import safe_upload_name, validate_upload
 
 
 class AnalysisService:
-    def __init__(self, config: Config):
+    def __init__(
+        self,
+        config: Config,
+        repository: AnalysisRepository,
+    ):
         self.config = config
+        self.repository = repository
 
     def analyze(
         self,
@@ -43,9 +48,8 @@ class AnalysisService:
             prefix=Path(stored_name).stem,
         )
 
-        # Registra a análise no banco.
-        analysis_id = save_analysis(
-            self.config.database_path,
+                # Registra a análise no banco.
+        analysis_id = self.repository.save(
             uploaded_file.filename,
             stored_path,
             report_path,

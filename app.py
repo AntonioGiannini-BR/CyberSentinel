@@ -5,6 +5,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from src.services import AnalysisService
+from src.repositories import AnalysisRepository
 
 try:
     from dotenv import load_dotenv
@@ -16,7 +17,7 @@ from werkzeug.security import check_password_hash
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from src.config import Config
-from src.db import get_analysis, init_db, list_analyses, delete_analysis, dashboard_stats
+from src.db import init_db
 from src.security import csrf_token, login_required, validate_csrf
 
 
@@ -35,7 +36,8 @@ def create_app(config: Config | None = None) -> Flask:
     for directory in (cfg.uploads_dir, cfg.reports_dir, cfg.audit_log_path.parent):
         directory.mkdir(parents=True, exist_ok=True)
     init_db(cfg.database_path)
-    analysis_service = AnalysisService(cfg)
+    analysis_repository = AnalysisRepository(cfg.database_path)
+    analysis_service = AnalysisService(cfg, analysis_repository)
     _configure_logging(app, cfg.audit_log_path)
 
     @app.context_processor
@@ -82,10 +84,10 @@ def create_app(config: Config | None = None) -> Flask:
     @app.get('/')
     @login_required
     def dashboard():
-        rows = list_analyses(cfg.database_path, limit=10)
+        rows = analysis_repository.list(limit=10)
         latest = rows[0] if rows else None
         result = json.loads(latest['result_json']) if latest else None
-        stats = dashboard_stats(cfg.database_path)
+        stats = analysis_repository.dashboard_stats()
         return render_template('dashboard.html', latest=latest, result=result, analyses=rows, stats=stats)
 
     @app.post('/upload')
@@ -131,12 +133,12 @@ def create_app(config: Config | None = None) -> Flask:
     @login_required
     def history():
         query = request.args.get('q', '').strip()[:100]
-        return render_template('history.html', analyses=list_analyses(cfg.database_path, limit=100, query=query), query=query)
+        return render_template('history.html', analyses=analysis_repository.list(limit=100, query=query), query=query)
 
     @app.get('/analysis/<int:analysis_id>')
     @login_required
     def analysis_detail(analysis_id: int):
-        row = get_analysis(cfg.database_path, analysis_id)
+        row = analysis_repository.get(analysis_id)
         if row is None:
             return render_template('error.html', message='Analysis not found.'), 404
         return render_template('analysis_detail.html', analysis=row, result=json.loads(row['result_json']))
@@ -144,7 +146,7 @@ def create_app(config: Config | None = None) -> Flask:
     @app.get('/analysis/<int:analysis_id>/report')
     @login_required
     def download_report(analysis_id: int):
-        row = get_analysis(cfg.database_path, analysis_id)
+        row = analysis_repository.get(analysis_id)
         if row is None:
             return render_template('error.html', message='Analysis not found.'), 404
         path = Path(row['report_path']).resolve()
@@ -157,14 +159,14 @@ def create_app(config: Config | None = None) -> Flask:
     @login_required
     def remove_analysis(analysis_id: int):
         validate_csrf()
-        row = get_analysis(cfg.database_path, analysis_id)
+        row = analysis_repository.get(analysis_id)
         if row is None:
             return render_template('error.html', message='Analysis not found.'), 404
         for key, root in [('stored_path', cfg.uploads_dir), ('report_path', cfg.reports_dir)]:
             path = Path(row[key]).resolve()
             if root.resolve() in path.parents and path.is_file():
                 path.unlink(missing_ok=True)
-        delete_analysis(cfg.database_path, analysis_id)
+        analysis_repository.delete(analysis_id)
         flash('Análise removida com segurança.', 'success')
         return redirect(url_for('history'))
 
